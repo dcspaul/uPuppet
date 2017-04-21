@@ -4,7 +4,7 @@
 
 module UPuppet.AST ( AST, Value(..), deRefArray, deRefHash,
         Scope(..), Variable(..), BinOp(..),
-	ValueExp(..), DeRefExp(..), fromValues, valueBool, valueString, valueInt, valueFloat,
+    ValueExp(..), DeRefExp(..), fromValues, valueBool, valueString, valueInt, valueFloat,
         mergeParams, IfCont(..), Statements(..), ProgramEle(..), Program, OptParameterList ) where
 
 import Data.List(lookup)
@@ -15,6 +15,7 @@ import Data.List(lookup)
 
 type AST = Program
 
+-- define the data type for values in muPuppet
 data Value =   ValueInt    Integer
              | ValueBool   Bool
              | ValueString String
@@ -23,13 +24,17 @@ data Value =   ValueInt    Integer
              | ValueHash   HashValue
              | ValueRef    String String
              deriving (Show,Eq)
-
+         
+-- define the type for array values
 type ArrayValue = [Value]
+-- define the type for hash values
 type HashValue  = [(Value, Value)]
 
+-- dereference an array value 
 deRefArray :: ArrayValue -> Integer -> DeRefExp 
 deRefArray xs d = Values (xs!! (fromInteger d))
 
+-- dereference a hash value
 deRefHash :: HashValue -> Value -> DeRefExp
 deRefHash ((x,v):vs) d | ((x,v):vs) == [] = error "deRefHash"
                        | x == d           = Values v 
@@ -38,16 +43,18 @@ deRefHash ((x,v):vs) d | ((x,v):vs) == [] = error "deRefHash"
 -- define the date type for scope
 data Scope = STop | SNode | SClass String | SDef Scope  
              deriving (Show, Eq)
+         
 -- define variables with or without scope
 data Variable = LocalVar String | ScopeVar Scope String 
                 deriving (Show,Eq)
+        
 -- define all binary operators
 data BinOp = AddOp | DivOp | MinOp | TimOp
            | AndOp | OrOp  
            | EqOp  | UneqOp | GrtOp  | LessOp | GeqOp |LeqOp 
              deriving (Show,Eq)
 
--- define expressions in muPuppet
+-- define the expressions in muPuppet
 data ValueExp =   BinOps      BinOp ValueExp ValueExp
                 | Not         ValueExp
                 | Selector    ValueExp [(ValueExp, ValueExp)]
@@ -55,14 +62,15 @@ data ValueExp =   BinOps      BinOp ValueExp ValueExp
                 | Hash        [(Value, ValueExp)]
                 | DeRef       DeRefExp
                 deriving (Show,Eq)
--- define the dereference expression component "DeRefExp"
+        
+-- define the dereference expressions
 data DeRefExp = Var Variable
               | Values Value
               | ResRef String ValueExp
               | DeRefItem DeRefExp ValueExp
               deriving (Show,Eq)
 
--- check whether a value is an integer nubmer
+-- check whether a value is an integer number
 valueInt :: ValueExp -> Maybe Integer
 valueInt (DeRef (Values (ValueInt x))) = (Just x) 
 valueInt _ = Nothing
@@ -105,7 +113,7 @@ mergeParams args ((x,dflt):params) = (x, arg):mergeParams args params
                 (Nothing, Just e) -> e
                 (Nothing, Nothing) -> error ("missing value for parameter " ++ x)
 
--- define the data type of statements of muPuppet
+-- define the data type for the statements of muPuppet
 data Statements = Skip
                 |If                     ValueExp Statements (Maybe IfCont)
                 |Unless                 ValueExp Statements (Maybe IfCont)
@@ -120,12 +128,13 @@ data Statements = Skip
                 |ResTypeCont            String ParameterList Statements
                 |ScopeStat              Scope Statements
                 deriving (Show, Eq)
--- define the component "IfCont"
+        
+-- define the data type "IfCont" for else and elseif statements
 data IfCont = Elseif                 ValueExp Statements (Maybe IfCont)
             | Else                   Statements
                    deriving (Show, Eq)
 
--- define the data type of elements in a program of mPuppet
+-- define the data type for elements in a program of muPuppet
 data ProgramEle = ProSkip 
              |ProStatement          Statements
              |Node                  String Statements
@@ -133,5 +142,5 @@ data ProgramEle = ProSkip
              |Class                 String OptParameterList (Maybe String) Statements
              deriving (Show)
 
--- define the type of a program of muPuppet
+-- define the type for a program of muPuppet
 type Program = [ProgramEle] 
