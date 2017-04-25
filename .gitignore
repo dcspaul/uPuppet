@@ -5,3 +5,4 @@
 /Cache/*
 /Bin/uPuppet
 /Test/Tmp
+/Vagrant/Ubuntu/ubuntu-xenial-16.04-cloudimg-console.log
