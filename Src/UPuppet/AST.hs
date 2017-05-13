@@ -106,8 +106,8 @@ mergeParams ((a,x):as) ps = mergeParams as (Map.toList (Map.insert a x (Map.from
 
 -- merge a list of parameters and a list of name and expression pairs
 mergeParams ::  ParameterList -> OptParameterList -> ParameterList
-mergeParams args [] = args
-mergeParams args ((x,dflt):params) = (x, arg):mergeParams args params
+mergeParams args [] = []
+mergeParams args ((x,dflt):params) = (x, arg):(mergeParams args params)
   where arg = case (Data.List.lookup x args, dflt) of
                 (Just e, _) ->  e
                 (Nothing, Just e) -> e

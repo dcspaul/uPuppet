@@ -1,0 +1,11 @@
+File { "from_class":
+  backup => true,
+  source => "/path",
+  path => "/path",
+  mode => 123
+}File { "from_define":
+  backup => true,
+  source => "/path",
+  path => "/path",
+  mode => 123
+}

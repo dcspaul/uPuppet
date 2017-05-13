@@ -396,7 +396,7 @@ evalStat (env, defEnv, cv, (StatementsList (s:xs)))  sco =
 evaltoListValue :: Env -> DefEnv -> Catalog -> Scope ->  [(String, ValueExp)] -> [(String, ValueExp)]
 evaltoListValue _ _ _ _ [] = [] 
 evaltoListValue env defEnv cv sco ((x,(DeRef (Values y))):ys) = ((x, (DeRef (Values y))):(evaltoListValue env defEnv cv sco ys))  
-evaltoListValue env defEnv cv sco ((x,y):ys) = ((x, (evalExp (env, defEnv, cv, y) sco)):ys)
+evaltoListValue env defEnv cv sco ((x,y):ys) = (x, (evalExp (env, defEnv, cv, y) sco)):(evaltoListValue env defEnv cv sco ys)
 
 -- check whether an expression is a value
 isVal :: ValueExp -> Bool
@@ -459,50 +459,46 @@ evalProg (env, defEnv, cv, (ProSkip:ps)) n = (env, defEnv, cv, ps)
 -- it corresponds to the rule MSEQStep
 evalProg (env, defEnv, cv, (p:ps)) n = let (env', defEnv', cv', p') = (evalProgEle (env, defEnv, cv, p) n) in (env', defEnv', cv', (p':ps))
 
-
-
-
 {------------------------------------------------------------------------------
     Evaluate AST for Puppet program & return the catalog
 ------------------------------------------------------------------------------}
 
-
 evalPuppet :: CState -> AST -> IO (Either [String] Catalog)
 evalPuppet st raw_ast = do { return (Right catalog') } where
 
-  -- evaluate in steps
-  (env', defEnv', catalog', ast') = 
-    evalNSteps steps (env, defEnv, catalog, ast)
+	-- evaluate in steps
+	(env', defEnv', catalog', ast') = 
+		evalNSteps steps (env, defEnv, catalog, ast)
 
-  -- initial values
-  env = []
-  defEnv = []
-  catalog = []
-  name = nodeName $ sOpts st
-  steps = stepLimit $ sOpts st
-  showTrace = (verbosity $ sOpts st) /= Normal
+	-- initial values
+	env = []
+	defEnv = []
+	catalog = []
+	name = nodeName $ sOpts st
+	steps = stepLimit $ sOpts st
+	showTrace = (verbosity $ sOpts st) /= Normal
         ast = case mainClass $ sOpts st of
                 Nothing -> raw_ast
                 Just main -> raw_ast ++ [ProStatement (Include main)]
 
-  -- evaluate steps with a trace of each step (if showTrace true)
-  evalNSteps limit states@(_,_,_,ast) =
-    if showTrace
-      then trace (show ast) states' 
-      else states'
-    where states' = evalNSteps' limit states 
+	-- evaluate steps with a trace of each step (if showTrace true)
+	evalNSteps limit states@(_,_,_,ast) =
+		if showTrace
+			then trace (show ast) states' 
+			else states'
+		where states' = evalNSteps' limit states 
 
-  -- evaluate steps
-  -- stop when we program is reduced to a skip
-  -- or stop when steplimit is reached
-  evalNSteps' limit states@(_,_,_,ast) =
-    case ast of
-      -- reduced to a skip
-      [] -> states
-      -- check the limit
-      otherwise -> case limit of
-        Just 0 -> error ("Evaluation incomplete with result " ++ show states)
-        Just n ->  evalNSteps (Just (n-1)) states'
-        Nothing -> evalNSteps Nothing states'
-    where
-      states' = evalProg states name 
+	-- evaluate steps
+	-- stop when we program is reduced to a skip
+	-- or stop when steplimit is reached
+	evalNSteps' limit states@(_,_,_,ast) =
+		case ast of
+			-- reduced to a skip
+			[] -> states
+			-- check the limit
+			otherwise -> case limit of
+				Just 0 -> error ("Evaluation incomplete with result " ++ show states)
+				Just n ->  evalNSteps (Just (n-1)) states'
+				Nothing -> evalNSteps Nothing states'
+		where
+			states' = evalProg states name 
