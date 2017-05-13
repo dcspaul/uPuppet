@@ -7,7 +7,7 @@ OPTS = -fno-warn-tabs
 
 SOURCES = $(shell find Src -name *.hs)
 TOOLS = $(shell test -d Tools && find Tools -type f)
-TESTS = $(shell test -d Tests && find Tests -type f)
+TESTS = $(shell test -d Test && find Test -type f)
 UNAME = $(shell uname)
 ARCH = $(shell arch)
 PLATFORM = $(UNAME)-$(ARCH)
