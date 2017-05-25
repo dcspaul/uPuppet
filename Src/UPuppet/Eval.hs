@@ -325,7 +325,7 @@ evalStat (env, defEnv, cv, (Case x ((z, s):xs))) sco = case x of
     _                  -> (env, defEnv, cv, (Case e ((z, s):xs))) 
                           where e = evalExp (env, defEnv, cv, x) sco
 -- evaluate "resource" 
--- the branches correspond to the rules RESDecl, RESStep, RESStepI, RESStepII, RESTitle,                          
+-- the branches correspond to the rules RESDecl, RESStepI, RESStepII, RESStepIII, RESTitle,                          
 evalStat (env, defEnv, cv, (Resource x y rs)) sco = case y of 
     (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (x,n,toValueRes rs) ), Skip)
                                         else (env, defEnv, cv, (Resource x y (evaltoListValue env defEnv cv sco rs)))
