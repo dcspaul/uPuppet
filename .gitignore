@@ -3,6 +3,7 @@
 /uPuppet.sublime-workspace
 /Tmp/*
 /Cache/*
-/Bin/uPuppet
+/Bin/uPuppet*
 /Test/Tmp
 /Vagrant/Ubuntu/ubuntu-xenial-16.04-cloudimg-console.log
+/Vagrant/Ubuntu/*.tgz
