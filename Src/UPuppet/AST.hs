@@ -32,7 +32,9 @@ type HashValue  = [(Value, Value)]
 
 -- dereference an array value 
 deRefArray :: ArrayValue -> Integer -> DeRefExp 
-deRefArray xs d = Values (xs!! (fromInteger d))
+deRefArray xs d | x >= 0    = Values (xs !! x)
+                | otherwise = Values (xs !! (length xs + x))
+                where x = fromInteger d
 
 -- dereference a hash value
 deRefHash :: HashValue -> Value -> DeRefExp

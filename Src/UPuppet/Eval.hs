@@ -169,7 +169,9 @@ evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueFloat x))) (DeRef 
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueString x))) (DeRef (Values (ValueString y))))) sco = (DeRef (Values (ValueBool (x /= y))))
 -- evaluate the "!=" operation on two boolean values
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueBool x))) (DeRef (Values (ValueBool y))))) sco     = (DeRef (Values (ValueBool (x /= y))))
--- evaluate the "Not" operation on an expression 
+-- evaluate the "+"  operation of two arrays
+evalExp (env, defEnv, cv, (BinOps AddOp (DeRef (Values (ValueArray x))) (DeRef (Values (ValueArray y))))) sco    = (DeRef (Values (ValueArray (x ++ y))))
+-- evaluate the "Not" operation on an expression  
 -- it corresponds to the rule NOTStep
 evalExp (env, defEnv, cv, (Not exp)) sco                                                                         = (Not (evalExp (env, defEnv, cv, exp) sco))
 -- evaluate the second argument of any binary operation of the operator belonging to BinOps
