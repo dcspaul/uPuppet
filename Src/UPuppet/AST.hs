@@ -19,7 +19,7 @@ type AST = Program
 data Value =   ValueInt    Integer
              | ValueBool   Bool
              | ValueString String
-             | ValueFloat  Float
+             | ValueFloat  Double
              | ValueArray  ArrayValue
              | ValueHash   HashValue
              | ValueRef    String String
@@ -51,7 +51,7 @@ data Variable = LocalVar String | ScopeVar Scope String
                 deriving (Show,Eq)
         
 -- define all binary operators
-data BinOp = AddOp | DivOp | MinOp | TimOp
+data BinOp = AddOp | DivOp | MinOp | TimOp | ModOp
            | AndOp | OrOp  
            | EqOp  | UneqOp | GrtOp  | LessOp | GeqOp |LeqOp 
              deriving (Show,Eq)
@@ -78,7 +78,7 @@ valueInt (DeRef (Values (ValueInt x))) = (Just x)
 valueInt _ = Nothing
 
 -- check whether a value is a float number
-valueFloat :: ValueExp -> Maybe Float
+valueFloat :: ValueExp -> Maybe Double
 valueFloat (DeRef (Values (ValueFloat x))) = (Just x)
 valueFloat _ = Nothing
 

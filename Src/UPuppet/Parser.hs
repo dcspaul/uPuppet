@@ -26,7 +26,7 @@ import qualified Text.Parsec.Token as P
     lexer
 ------------------------------------------------------------------------------}
 
-type PuppetLanguageDef st = GenLanguageDef String st IO
+type PuppetLanguageDef st = GenLanguageDef String st IO   
 
 puppetDef :: PuppetLanguageDef st
 puppetDef = P.LanguageDef
@@ -39,7 +39,7 @@ puppetDef = P.LanguageDef
 	, P.identLetter = alphaNum
 	, P.opStart = oneOf "&=!|<>+*/-?,:oa"
 	, P.opLetter = oneOf "&=!|<>+*/-?,:"
-	, P.reservedOpNames = ["+","-","/","*", "==", "!=", ">", "<", ">=", "<=", "?", "=>", ",", "=", "::", "and", "or"]
+	, P.reservedOpNames = ["+","-","/","*", "==", "!=", ">", "<", ">=", "<=", "?", "=>", ",", "=", "::", "%", "and", "or"]
 	, P.reservedNames = ["true", "false", 
 						 "if", "then", "elsif", "unless", "select", "case", 
 						 "define", "include", "class", "node", "inherits"] 
@@ -82,7 +82,7 @@ builtinResourceParser = do { x <- m_identifier
 {------------------------------------------------------------------------------
     PuppetParser
 ------------------------------------------------------------------------------}
-
+  
 -- the PuppetParser uses the IO monad with ParsecT
 -- this is necessary if you want to do IO in here
 -- I'm not sure that we actually do at the moment,
@@ -122,7 +122,8 @@ table =
 	[ --[Infix (m_reservedOp "?" >> return (Selector)) AssocLeft],
           [Prefix (m_reservedOp "!" >> return (Not))]
  	, [Infix (m_reservedOp "*" >> return (BinOps (TimOp))) AssocLeft, 
-	   Infix (m_reservedOp "/" >> return (BinOps (DivOp))) AssocLeft]
+	   Infix (m_reservedOp "/" >> return (BinOps (DivOp))) AssocLeft,
+     Infix (m_reservedOp "%" >> return (BinOps (ModOp))) AssocLeft]
 	, [Infix (m_reservedOp "+" >> return (BinOps (AddOp))) AssocLeft, 
 	   Infix (m_reservedOp "-" >> return (BinOps (MinOp))) AssocLeft]
 	, [Infix (m_reservedOp ">" >> return (BinOps (GrtOp))) AssocLeft, 
@@ -136,6 +137,7 @@ table =
 	]
 
 term = m_parens expr 
+    <|> (try (do { d <- m_float ; return (DeRef (Values (ValueFloat d))) }))
     <|> (do { d <- m_integer ; return (DeRef (Values (ValueInt d))) })
     <|> (do { s <- m_stringLiteral ; return (DeRef (Values (ValueString s))) })
     <|> (do { r <- try builtinResourceParser

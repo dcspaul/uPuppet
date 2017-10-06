@@ -125,6 +125,10 @@ evalExp (env, defEnv, cv, (BinOps TimOp (DeRef (Values (ValueFloat x))) (DeRef (
 evalExp (env, defEnv, cv, (BinOps DivOp (DeRef (Values (ValueInt x))) (DeRef (Values (ValueInt y))))) sco        = (DeRef (Values (ValueInt (x `div` y))))
 -- evaluate the division of two float numbers
 evalExp (env, defEnv, cv, (BinOps DivOp (DeRef (Values (ValueFloat x))) (DeRef (Values (ValueFloat y))))) sco    = (DeRef (Values (ValueFloat (x / y))))
+-- evaluate the modulo of two integer numbers
+evalExp (env, defEnv, cv, (BinOps ModOp (DeRef (Values (ValueInt x))) (DeRef (Values (ValueInt y))))) sco        = (DeRef (Values (ValueInt (x `mod` y))))
+-- evaluate the modulo of two float numbers
+evalExp (env, defEnv, cv, (BinOps ModOp (DeRef (Values (ValueFloat _))) (DeRef (Values (ValueFloat _))))) sco    = error "Operation % not supported on floats!"
 -- evaluate the "and" operation of two boolean values 
 -- it corresponds to the rule ANDValue
 evalExp (env, defEnv, cv, (BinOps AndOp (DeRef (Values (ValueBool x))) (DeRef (Values (ValueBool y))))) sco      = (DeRef (Values (ValueBool (x && y))))
@@ -283,6 +287,9 @@ evalStat (env, defEnv, cv, (Assignment x y)) sco  = case y of
     (DeRef (Values v)) -> if lookupEnv env sco x /= Nothing then error ("Variable " ++ show x ++ " already defined in scope " ++ show sco)
                           else ((env ++ [(sco, x, v)]), defEnv, cv, Skip)
     _                  -> (env, defEnv, cv, (Assignment x (evalExp (env, defEnv, cv, y) sco)))
+-- throw errors when if or unless statements have an empty body
+evalStat (env, defEnv, cv, (If _ (StatementsList []) _)) sco = error ("If statement has an empty body!")
+evalStat (env, defEnv, cv, (Unless _ (StatementsList []) _)) sco = error ("Unless statement has an empty body!")
 -- evaluate "if" statement when the control expression is equal to "True"
 -- it corresponds to the rule IFT
 evalStat (env, defEnv, cv, (If (DeRef (Values (ValueBool True))) y k)) sco = (env, defEnv, cv, y)
