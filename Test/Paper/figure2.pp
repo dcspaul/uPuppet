@@ -1,3 +1,5 @@
+# @UNSUPPORTED
+# @FEATURES undef
 # @caption: Resources and Classes
 # @label: ex1
 node default {

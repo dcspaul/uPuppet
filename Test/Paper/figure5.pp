@@ -1,3 +1,5 @@
+# @UNSUPPORTED
+# @FEATURES no_main, duplicate_resource_path
 # @caption: Class Parameters and Defined Resource Types
 # @label: ex2
 class c (                 #\plab{ex2:service2}
