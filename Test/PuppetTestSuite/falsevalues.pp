@@ -1,4 +1,3 @@
-#@UNSUPPORTED
 #@FEATURES in_string_variables
 class main {
 

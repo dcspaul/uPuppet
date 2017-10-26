@@ -5,7 +5,11 @@
 module UPuppet.Eval ( evalPuppet ) where
 
 import Data.List
+import Data.String.Utils
 import Debug.Trace
+
+import Text.Regex
+import Text.Regex.PCRE
 
 import UPuppet.CState
 import UPuppet.AST
@@ -95,6 +99,34 @@ isDef :: DefEnv -> String -> Bool
 isDef [] _ = False
 isDef ((x, def):ds) n = if x == n then True else isDef ds n 
 
+-- dereference in-string variables
+inStringVar :: Env -> DefEnv -> Scope -> String -> String
+inStringVar env defEnv sco text = substituteVars text vars vals
+    where
+      
+      vars :: [String]
+      vars = getAllTextMatches $ text =~ "(?<!\\\\)\\$(\\{\\w+\\}|\\w+)" :: [String]
+
+      extractVal :: Maybe Value -> String
+      extractVal x = case x of 
+        (Just (ValueBool x))   -> if x then "true" else "false"
+        (Just (ValueString x)) -> x
+        (Just (ValueInt x))    -> show x
+        (Just (ValueFloat x))  -> show x
+        _                      -> ""
+      
+      nameOnly :: String -> String
+      nameOnly (_:x:xs) = if x == '{' then init xs else x:xs
+  
+      vals :: [String]
+      vals = [ extractVal $ lookupEnv env sco $ nameOnly x | x <- vars]
+
+      replace' :: String -> (String, String) -> String
+      replace' text (a,b) = replace a b text
+
+      substituteVars :: String -> [String] -> [String] -> String
+      substituteVars text [] []     = text
+      substituteVars text vars vals = foldl replace' text $ zip vars vals
 
 -- define the type of the states of a program in the process of evaluation
 type States a = (Env, DefEnv, Catalog, a)  
@@ -162,7 +194,7 @@ evalExp (env, defEnv, cv, (BinOps EqOp (DeRef (Values (ValueInt x))) (DeRef (Val
 -- evaluate the "==" operation on two float numbers
 evalExp (env, defEnv, cv, (BinOps EqOp (DeRef (Values (ValueFloat x))) (DeRef (Values (ValueFloat y))))) sco     = (DeRef (Values (ValueBool (x == y))))
 -- evaluate the "==" operation on two string values
-evalExp (env, defEnv, cv, (BinOps EqOp (DeRef (Values (ValueString x))) (DeRef (Values (ValueString y))))) sco   = (DeRef (Values (ValueBool (x == y))))
+evalExp (env, defEnv, cv, (BinOps EqOp (DeRef (Values (ValueString x))) (DeRef (Values (ValueString y))))) sco   = (DeRef (Values (ValueBool ((inStringVar env defEnv sco x) == (inStringVar env defEnv sco y)))))
 -- evaluate the "==" operation on two boolean values
 evalExp (env, defEnv, cv, (BinOps EqOp (DeRef (Values (ValueBool x))) (DeRef (Values (ValueBool y))))) sco       = (DeRef (Values (ValueBool (x == y))))
 -- evaluate the "!=" operation on two integer values
@@ -170,7 +202,7 @@ evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueInt x))) (DeRef (V
 -- evaluate the "!=" operation on two float values
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueFloat x))) (DeRef (Values (ValueFloat y))))) sco   = (DeRef (Values (ValueBool (x /= y))))
 -- evaluate the "!=" operation on two string values
-evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueString x))) (DeRef (Values (ValueString y))))) sco = (DeRef (Values (ValueBool (x /= y))))
+evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueString x))) (DeRef (Values (ValueString y))))) sco = (DeRef (Values (ValueBool ((inStringVar env defEnv sco x) /= (inStringVar env defEnv sco y)))))
 -- evaluate the "!=" operation on two boolean values
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueBool x))) (DeRef (Values (ValueBool y))))) sco     = (DeRef (Values (ValueBool (x /= y))))
 -- evaluate the "+"  operation of two arrays
@@ -192,11 +224,16 @@ evalExp (env, defEnv, cv, (Selector s sbody)) sco | not(isVal s)                
 evalExp (env, defEnv, cv, (Selector _  [])) sco                                                                  = error "No value returned by selector"
 -- compares the control value to the cases, if the cases are not values, evaluates them.
 -- it corresponds to the rules SChooseI, SChooseII and SCase
-evalExp (env, defEnv, cv, (Selector s@(DeRef (Values v)) ((x,z):xs))) sco = 
-  case x of (DeRef (Values (ValueString "default"))) -> z   
+evalExp (env, defEnv, cv, (Selector s@(DeRef (Values val)) ((x,z):xs))) sco = 
+  case x of (DeRef (Values (ValueString "default"))) -> z
+            (DeRef (Values (ValueString str)))       -> if v == (ValueString (inStringVar env defEnv sco str)) then z else (Selector s xs)
             (DeRef (Values w))                       -> if v == w then z else (Selector s xs)
             _                                        -> Selector s ((e,z):xs)
                                                         where e = evalExp (env, defEnv, cv, x) sco
+    where
+        v = case val of
+            (ValueString str) -> ValueString (inStringVar env defEnv sco str)
+            _                 -> val
 evalExp (env, defEnv, cv, (Selector _ _)) sco                                                                    = error "Selector"
 -- error message for an empty array
 evalExp (env, defEnv, cv, (Array [])) sco   = error "empty array"
@@ -222,10 +259,10 @@ evalExp (env, defEnv, cv, (DeRef (DeRefItem x r))) sco = case x of
                                DeRef (Values x)        -> DeRef (deRefHash s x)
                                _                       -> DeRef (DeRefItem x (evalExp (env, defEnv, cv, r) sco))
     (Values (ValueRef a b)) -> case r of 
-                               (DeRef (Values (ValueString x))) -> (lookupCat cv a b x) 
+                               (DeRef (Values (ValueString x))) -> (lookupCat cv a b $ inStringVar env defEnv sco x) 
                                _                                -> error "evalValueRef"             
     (ResRef a b)            -> case b of 
-                               (DeRef (Values (ValueString x))) -> (DeRef (DeRefItem (Values (ValueRef a x)) r))
+                               (DeRef (Values (ValueString x))) -> (DeRef (DeRefItem (Values (ValueRef a $ inStringVar env defEnv sco x)) r))
                                (DeRef (Values _ ))              -> error "evalResRef"
                                _                                -> (DeRef (DeRefItem (ResRef a (evalExp (env, defEnv, cv, b) sco)) r))
     (DeRefItem a b)         -> case (evalExp (env, defEnv, cv, (DeRef x)) sco) of
@@ -235,7 +272,7 @@ evalExp (env, defEnv, cv, (DeRef (DeRefItem x r))) sco = case x of
 -- evaluate the resource dereference
 -- it corresponds to the rules REFRes and DEREFRes 
 evalExp (env, defEnv, cv, (DeRef (ResRef r n))) sco = case n of 
-    (DeRef (Values (ValueString x))) -> (DeRef (Values (ValueRef r x)))
+    (DeRef (Values (ValueString x))) -> (DeRef (Values (ValueRef r  $ inStringVar env defEnv sco x)))
     (DeRef (Values _ ))              -> error "ResRef1"
     _                                -> (DeRef (ResRef r (evalExp (env, defEnv, cv, n) sco)))
 
@@ -285,7 +322,9 @@ evalStat (env, defEnv, cv, Skip) sco                                 = error "ev
 -- it corresponds to the rules ASSIGN and ASSIGNStep
 evalStat (env, defEnv, cv, (Assignment x y)) sco  = case y of 
     (DeRef (Values v)) -> if lookupEnv env sco x /= Nothing then error ("Variable " ++ show x ++ " already defined in scope " ++ show sco)
-                          else ((env ++ [(sco, x, v)]), defEnv, cv, Skip)
+                          else case v of
+                            (ValueString str) -> ((env ++ [(sco, x, ValueString $ inStringVar env defEnv sco str)]), defEnv, cv, Skip)
+                            _                 -> ((env ++ [(sco, x, v)]), defEnv, cv, Skip)
     _                  -> (env, defEnv, cv, (Assignment x (evalExp (env, defEnv, cv, y) sco)))
 -- throw errors when if or unless statements have an empty body
 evalStat (env, defEnv, cv, (If _ (StatementsList []) _)) sco = error ("If statement has an empty body!")
@@ -325,18 +364,23 @@ evalStat (env, defEnv, cv, (Unless e s k)) sco = (env, defEnv, cv, (Unless e2 s 
 evalStat (env, defEnv, cv, (Case x [])) sco          = (env, defEnv, cv, Skip)
 -- evaluate "case" statement if there are cases
 -- the branches correspond to the rule CASEMatch, CASENoMatch, CASEStep2 and CASEStep1 respectively
-evalStat (env, defEnv, cv, (Case x ((z, s):xs))) sco = case x of 
+evalStat (env, defEnv, cv, (Case x ((z, s):xs))) sco = case new_x of 
     (DeRef (Values y)) -> case z of 
                           (DeRef (Values (ValueString "default"))) -> (env, defEnv, cv, s)
+                          (DeRef (Values (ValueString str))) -> if (y == (ValueString (inStringVar env defEnv sco str))) then (env, defEnv, cv, s) else (env, defEnv, cv, (Case x xs))
                           (DeRef (Values n)) -> if (y==n) then (env, defEnv, cv, s) else (env, defEnv, cv, (Case x xs))
                           _                  -> (env, defEnv, cv, (Case x ((e, s):xs))) 
                                                 where e = evalExp (env, defEnv, cv, z) sco
     _                  -> (env, defEnv, cv, (Case e ((z, s):xs))) 
                           where e = evalExp (env, defEnv, cv, x) sco
+        where 
+            new_x = case x of
+                (DeRef (Values (ValueString str))) -> (DeRef (Values (ValueString (inStringVar env defEnv sco str))))
+                _                                  -> x
 -- evaluate "resource" 
 -- the branches correspond to the rules RESDecl, RESStepI, RESStepII, RESStepIII, RESTitle,                          
 evalStat (env, defEnv, cv, (Resource x y rs)) sco = case y of 
-    (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (x,n,toValueRes rs) ), Skip)
+    (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (x,inStringVar env defEnv sco n,toValueRes rs) ), Skip)
                                         else (env, defEnv, cv, (Resource x y (evaltoListValue env defEnv cv sco rs)))
     (DeRef (Values _ ))              -> error "wrong type of resource name"
     _                                -> (env, defEnv, cv, (Resource x e rs)) 

@@ -20,12 +20,15 @@ Where `<YOUR-PLATFORM>` is the appropriate platform. If there is no appropriate 
 ## Building
 
 The source is in Src. To compile this, you probably need:
+- libpcre-ocaml-dev
+	- Necessary for regular expressions (`dev` required by `regex-pcre`)
 - ghc 7.10.*
 - `cabal install MissingH`
 - `cabal install Aeson`
 - `cabal install process`
 - `cabal install filepath`
 - `cabal install directory`
+- `cabal install regex-pcre`
 
 Then:
 - Type `make`
