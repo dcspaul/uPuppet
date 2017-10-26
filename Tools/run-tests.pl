@@ -265,6 +265,7 @@ sub RunTest($) {
 					: ($unsupported) ? "uPuppet unsupported, but both compiled ok (catalogs differ)\n$msgs"
 					: "both compiled ok, but catalogs differ\n$msgs";
 				chomp $status;
+				$tag = "OK" if ($unsupported);
 			}
 		} else {
 			$status = ($expectFail)
