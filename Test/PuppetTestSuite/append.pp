@@ -1,4 +1,3 @@
-#@UNSUPPORTED
 #@FEATURES array_concat, array_expansion
 
 $var=["/tmp/file1","/tmp/file2"]

@@ -34,7 +34,7 @@ $anothervar = "Yayness"
 file { "/tmp/snippetselectdtest":
     ensure => "file",
     mode => $anothervar ? {
-        Yayness => "755",
+        "Yayness" => "755",
         default => "644"
     }
 }

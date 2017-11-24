@@ -1,5 +1,5 @@
 #@Features: array_concatenation, negative indeces
-# This test checkes that concatenating arrays works as intended with other arrays.
+# This test checks that concatenating arrays works as intended with other arrays.
 
 $var=["/tmp/file1","/tmp/file2"]
 $var2 = ["/tmp/file5","/tmp/file6"]

@@ -13,7 +13,7 @@ import UPuppet.CState
 import UPuppet.AST
 
 import Control.Monad(guard)
-import Data.Char(toLower)
+import Data.Char(toLower, isAlphaNum)
 import Data.List(intercalate,find)
 import Text.Parsec
 import Text.Parsec.String
@@ -36,7 +36,7 @@ puppetDef = P.LanguageDef
 	, P.nestedComments 	= True
 	, P.caseSensitive 	= True
 	, P.identStart = letter
-	, P.identLetter = alphaNum
+	, P.identLetter = satisfy (\c -> isAlphaNum c || c == '_')
 	, P.opStart = oneOf "&=!|<>+*/-?,:oa"
 	, P.opLetter = oneOf "&=!|<>+*/-?,:"
 	, P.reservedOpNames = ["+","-","/","*", "==", "!=", ">", "<", ">=", "<=", "?", "=>", ",", "=", "::", "%", "and", "or"]
@@ -120,20 +120,22 @@ src = do
 
 table =
 	[ --[Infix (m_reservedOp "?" >> return (Selector)) AssocLeft],
-          [Prefix (m_reservedOp "!" >> return (Not))]
+      [Prefix (m_reservedOp "!" >> return (UnaryOps (Not)))]
+    , [Prefix (m_reservedOp "-" >> return (UnaryOps (Negate)))]
+    , [Prefix (m_reservedOp "*" >> return (UnaryOps (Splat)))]
  	, [Infix (m_reservedOp "*" >> return (BinOps (TimOp))) AssocLeft, 
 	   Infix (m_reservedOp "/" >> return (BinOps (DivOp))) AssocLeft,
-     Infix (m_reservedOp "%" >> return (BinOps (ModOp))) AssocLeft]
+       Infix (m_reservedOp "%" >> return (BinOps (ModOp))) AssocLeft]
 	, [Infix (m_reservedOp "+" >> return (BinOps (AddOp))) AssocLeft, 
 	   Infix (m_reservedOp "-" >> return (BinOps (MinOp))) AssocLeft]
+    , [Infix (m_reservedOp "==" >> return (BinOps (EqOp))) AssocLeft,
+      Infix (m_reservedOp "!=" >> return (BinOps (UneqOp))) AssocLeft]
 	, [Infix (m_reservedOp ">" >> return (BinOps (GrtOp))) AssocLeft, 
 	   Infix (m_reservedOp "<" >> return (BinOps (LessOp))) AssocLeft,
 	   Infix (m_reservedOp ">=" >> return (BinOps (GeqOp))) AssocLeft, 
 	   Infix (m_reservedOp "<=" >> return (BinOps (LeqOp))) AssocLeft]
-	, [Infix (m_reservedOp "==" >> return (BinOps (EqOp))) AssocLeft,
-	   Infix (m_reservedOp "!=" >> return (BinOps (UneqOp))) AssocLeft]
-  , [Infix (m_reservedOp "and" >> return (BinOps (AndOp))) AssocLeft,
-     Infix (m_reservedOp "or" >> return (BinOps (OrOp))) AssocLeft]
+    , [Infix (m_reservedOp "and" >> return (BinOps (AndOp))) AssocLeft]
+    , [Infix (m_reservedOp "or" >> return (BinOps (OrOp))) AssocLeft]
 	]
 
 term = m_parens expr 

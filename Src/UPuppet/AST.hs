@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------------}
 
 module UPuppet.AST ( AST, Value(..), deRefArray, deRefHash,
-        Scope(..), Variable(..), BinOp(..),
+        Scope(..), Variable(..), BinOp(..), UnaryOp(..), 
     ValueExp(..), DeRefExp(..), fromValues, valueBool, valueString, valueInt, valueFloat,
         mergeParams, IfCont(..), Statements(..), ProgramEle(..), Program, OptParameterList ) where
 
@@ -56,9 +56,12 @@ data BinOp = AddOp | DivOp | MinOp | TimOp | ModOp
            | EqOp  | UneqOp | GrtOp  | LessOp | GeqOp |LeqOp 
              deriving (Show,Eq)
 
+data UnaryOp = Not | Splat | Negate
+                deriving (Show,Eq)
+
 -- define the expressions in muPuppet
 data ValueExp =   BinOps      BinOp ValueExp ValueExp
-                | Not         ValueExp
+                | UnaryOps    UnaryOp ValueExp
                 | Selector    ValueExp [(ValueExp, ValueExp)]
                 | Array       [ValueExp]
                 | Hash        [(Value, ValueExp)]

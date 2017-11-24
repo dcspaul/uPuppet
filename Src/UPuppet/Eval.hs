@@ -168,10 +168,14 @@ evalExp (env, defEnv, cv, (BinOps AndOp (DeRef (Values (ValueBool x))) (DeRef (V
 evalExp (env, defEnv, cv, (BinOps OrOp  (DeRef (Values (ValueBool x))) (DeRef (Values (ValueBool y))))) sco      = (DeRef (Values (ValueBool (x || y))))
 -- evaluate the "not" operation on the value "Ture" 
 -- it corresponds to the rule NOTValueI
-evalExp (env, defEnv, cv, (Not (DeRef (Values (ValueBool True))))) sco                                           = (DeRef (Values (ValueBool False)))
+evalExp (env, defEnv, cv, (UnaryOps Not (DeRef (Values (ValueBool True))))) sco                                  = (DeRef (Values (ValueBool False)))
 -- evaluate the "not" operation on the value "False" 
 -- it corresponds to the rule NOTValueII
-evalExp (env, defEnv, cv, (Not (DeRef (Values (ValueBool False))))) sco                                          = (DeRef (Values (ValueBool True)))
+evalExp (env, defEnv, cv, (UnaryOps Not (DeRef (Values (ValueBool False))))) sco                                 = (DeRef (Values (ValueBool True)))
+-- evaluate negating integer Values
+evalExp (env, defEnv, cv, (UnaryOps Negate (DeRef (Values (ValueInt x))))) sco                                   = (DeRef (Values (ValueInt (-x))))
+-- evaluate negating floating point Values
+evalExp (env, defEnv, cv, (UnaryOps Negate (DeRef (Values (ValueFloat x))))) sco                                 = (DeRef (Values (ValueFloat (-x))))
 -- evaluate the ">" operation on two integer numbers
 -- it corresponds to the rules COMPValueI and COMPValueII 
 evalExp (env, defEnv, cv, (BinOps GrtOp (DeRef (Values (ValueInt x))) (DeRef (Values (ValueInt y))))) sco        = (DeRef (Values (ValueBool (x > y))))
@@ -209,7 +213,7 @@ evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueBool x))) (DeRef (
 evalExp (env, defEnv, cv, (BinOps AddOp (DeRef (Values (ValueArray x))) (DeRef (Values (ValueArray y))))) sco    = (DeRef (Values (ValueArray (x ++ y))))
 -- evaluate the "Not" operation on an expression  
 -- it corresponds to the rule NOTStep
-evalExp (env, defEnv, cv, (Not exp)) sco                                                                         = (Not (evalExp (env, defEnv, cv, exp) sco))
+evalExp (env, defEnv, cv, (UnaryOps op exp)) sco                                                                 = (UnaryOps op (evalExp (env, defEnv, cv, exp) sco))
 -- evaluate the second argument of any binary operation of the operator belonging to BinOps
 -- it corresponds to the rules ARITHRight, COMRight, ANDRightI, ANDRightII
 evalExp (env, defEnv, cv, (BinOps op (DeRef (Values v)) exp')) sco                                               = BinOps op (DeRef (Values v)) (evalExp (env, defEnv, cv, exp') sco)
@@ -226,6 +230,8 @@ evalExp (env, defEnv, cv, (Selector _  [])) sco                                 
 -- it corresponds to the rules SChooseI, SChooseII and SCase
 evalExp (env, defEnv, cv, (Selector s@(DeRef (Values val)) ((x,z):xs))) sco = 
   case x of (DeRef (Values (ValueString "default"))) -> z
+            (UnaryOps Splat (DeRef (Values (ValueArray arr))))  -> evalExp (env, defEnv, cv, (Selector s (e ++ xs))) sco
+              where e = map (\l -> ((DeRef (Values l)), z)) arr
             (DeRef (Values (ValueString str)))       -> if v == (ValueString (inStringVar env defEnv sco str)) then z else (Selector s xs)
             (DeRef (Values w))                       -> if v == w then z else (Selector s xs)
             _                                        -> Selector s ((e,z):xs)
@@ -365,7 +371,9 @@ evalStat (env, defEnv, cv, (Case x [])) sco          = (env, defEnv, cv, Skip)
 -- evaluate "case" statement if there are cases
 -- the branches correspond to the rule CASEMatch, CASENoMatch, CASEStep2 and CASEStep1 respectively
 evalStat (env, defEnv, cv, (Case x ((z, s):xs))) sco = case new_x of 
-    (DeRef (Values y)) -> case z of 
+    (DeRef (Values y)) -> case z of
+                          (UnaryOps Splat (DeRef (Values (ValueArray arr))))  -> (env, defEnv, cv, (Case x (e ++ xs)))
+                            where e = map (\v -> ((DeRef (Values v)), s)) arr
                           (DeRef (Values (ValueString "default"))) -> (env, defEnv, cv, s)
                           (DeRef (Values (ValueString str))) -> if (y == (ValueString (inStringVar env defEnv sco str))) then (env, defEnv, cv, s) else (env, defEnv, cv, (Case x xs))
                           (DeRef (Values n)) -> if (y==n) then (env, defEnv, cv, s) else (env, defEnv, cv, (Case x xs))
@@ -380,6 +388,8 @@ evalStat (env, defEnv, cv, (Case x ((z, s):xs))) sco = case new_x of
 -- evaluate "resource" 
 -- the branches correspond to the rules RESDecl, RESStepI, RESStepII, RESStepIII, RESTitle,                          
 evalStat (env, defEnv, cv, (Resource x y rs)) sco = case y of 
+    (UnaryOps Splat v@(DeRef (Values (ValueArray _))))  -> (env, defEnv, cv, (Resource x v rs))  -- reduce splat as it behaves as an array would
+    (DeRef (Values (ValueArray arr)))-> evalStat (env, defEnv, cv, StatementsList (map (\v -> Resource x v rs) (map (\v -> (DeRef (Values v))) arr))) sco -- split Resource into multiple
     (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (x,inStringVar env defEnv sco n,toValueRes rs) ), Skip)
                                         else (env, defEnv, cv, (Resource x y (evaltoListValue env defEnv cv sco rs)))
     (DeRef (Values _ ))              -> error "wrong type of resource name"
