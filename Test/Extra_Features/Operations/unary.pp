@@ -1,7 +1,7 @@
 #@Features: splat, negation, not
-# This file tests unitary operators in the Puppet Language 
+# This file tests unary operators in the Puppet Language 
 
-class unitary_test {
+class unary {
   $var=["/tmp/file1","/tmp/file2"]
   $dummy_var = ["/tmp/file2", "/tmp/file3"]
   $neg_10 = -10
@@ -28,6 +28,6 @@ class unitary_test {
 
 class main {
 
-include unitary_test
+include unary
 
 }

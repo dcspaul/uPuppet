@@ -211,7 +211,15 @@ evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueString x))) (DeRef
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueBool x))) (DeRef (Values (ValueBool y))))) sco     = (DeRef (Values (ValueBool (x /= y))))
 -- evaluate the "+"  operation of two arrays
 evalExp (env, defEnv, cv, (BinOps AddOp (DeRef (Values (ValueArray x))) (DeRef (Values (ValueArray y))))) sco    = (DeRef (Values (ValueArray (x ++ y))))
--- evaluate the "Not" operation on an expression  
+-- evaluate the "=~" operation of string and Regex
+evalExp (env, defEnv, cv, (BinOps Match (DeRef (Values (ValueString x))) (DeRef (Values (ValueRegex r))))) sco   = (DeRef (Values (ValueBool (x =~ r))))
+-- evaluate the "=~" operation of string and String
+evalExp (env, defEnv, cv, (BinOps Match (DeRef (Values (ValueString x))) (DeRef (Values (ValueString r))))) sco  = (DeRef (Values (ValueBool (x =~ r))))
+-- evaluate the "!~" operation of string and Regex
+evalExp (env, defEnv, cv, (BinOps NonMatch (DeRef (Values (ValueString x))) (DeRef (Values (ValueRegex r))))) sco   = (DeRef (Values (ValueBool (not (x =~ r)))))
+-- evaluate the "!~" operation of string and String
+evalExp (env, defEnv, cv, (BinOps NonMatch (DeRef (Values (ValueString x))) (DeRef (Values (ValueString r))))) sco  = (DeRef (Values (ValueBool (not (x =~ r)))))
+-- evaluate the "in" operation with a -- evaluate the "Not" operation on an expression  
 -- it corresponds to the rule NOTStep
 evalExp (env, defEnv, cv, (UnaryOps op exp)) sco                                                                 = (UnaryOps op (evalExp (env, defEnv, cv, exp) sco))
 -- evaluate the second argument of any binary operation of the operator belonging to BinOps
@@ -390,8 +398,9 @@ evalStat (env, defEnv, cv, (Case x ((z, s):xs))) sco = case new_x of
 evalStat (env, defEnv, cv, (Resource x y rs)) sco = case y of 
     (UnaryOps Splat v@(DeRef (Values (ValueArray _))))  -> (env, defEnv, cv, (Resource x v rs))  -- reduce splat as it behaves as an array would
     (DeRef (Values (ValueArray arr)))-> evalStat (env, defEnv, cv, StatementsList (map (\v -> Resource x v rs) (map (\v -> (DeRef (Values v))) arr))) sco -- split Resource into multiple
-    (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (x,inStringVar env defEnv sco n,toValueRes rs) ), Skip)
+    (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (x,inStringVar env defEnv sco n,toValueRes rs_mod) ), Skip)
                                         else (env, defEnv, cv, (Resource x y (evaltoListValue env defEnv cv sco rs)))
+                                        where rs_mod = modifyValueRes env defEnv sco rs
     (DeRef (Values _ ))              -> error "wrong type of resource name"
     _                                -> (env, defEnv, cv, (Resource x e rs)) 
                                          where e = evalExp (env, defEnv, cv, y) sco
@@ -477,6 +486,13 @@ toValueRes :: [(String, ValueExp)] -> [(String, Value)]
 toValueRes []                           = []
 toValueRes ((x, (DeRef (Values v))):as) = ((x, v):(toValueRes as))
 toValueRes _                            = error "not all element is a value"
+
+modifyValueRes ::  Env -> DefEnv -> Scope ->  [(String, ValueExp)] -> [(String, ValueExp)]
+modifyValueRes env defEnv sco []                                       = []
+modifyValueRes env defEnv sco ((x, (DeRef (Values (ValueString s)))):as) = (x, (DeRef (Values (ValueString (inStringVar env defEnv sco s))))) : (modifyValueRes env defEnv sco as)
+modifyValueRes env defEnv sco ((x, v@(DeRef (Values _))):as) = (x,v) : (modifyValueRes env defEnv sco as)
+modifyValueRes env defEnv sco _                                        = error "Unexpected Resource Type"
+
 
 {------------------------------------------------------------------------------
     Evaluation of elements of a program of muPuppet 

@@ -14,5 +14,5 @@ class main::parent {
 
 node default {
   $comment = "the comment"
-  include main
+  include main 
 }

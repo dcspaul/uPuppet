@@ -39,7 +39,8 @@ puppetDef = P.LanguageDef
 	, P.identLetter = satisfy (\c -> isAlphaNum c || c == '_')
 	, P.opStart = oneOf "&=!|<>+*/-?,:oa"
 	, P.opLetter = oneOf "&=!|<>+*/-?,:"
-	, P.reservedOpNames = ["+","-","/","*", "==", "!=", ">", "<", ">=", "<=", "?", "=>", ",", "=", "::", "%", "and", "or"]
+	, P.reservedOpNames = ["+","-","/","*", "==", "!=", ">", "<", ">=", "<=", "!~", "=~", "in", "<<", ">>",
+                            "?", "=>", ",", "=", "::", "%", "and", "or"]
 	, P.reservedNames = ["true", "false", 
 						 "if", "then", "elsif", "unless", "select", "case", 
 						 "define", "include", "class", "node", "inherits"] 
@@ -119,15 +120,20 @@ src = do
 ------------------------------------------------------------------------------}
 
 table =
-	[ --[Infix (m_reservedOp "?" >> return (Selector)) AssocLeft],
+	[
       [Prefix (m_reservedOp "!" >> return (UnaryOps (Not)))]
     , [Prefix (m_reservedOp "-" >> return (UnaryOps (Negate)))]
     , [Prefix (m_reservedOp "*" >> return (UnaryOps (Splat)))]
+    ,[Infix (try $ do {spaces; string "in"; (lookAhead . satisfy) (\c -> not (isAlphaNum c || c == '_')); spaces; return (BinOps (In)) }) AssocLeft]
+    ,[Infix (m_reservedOp "=~" >> return (BinOps (Match))) AssocLeft,
+      Infix (m_reservedOp "!~" >> return (BinOps (NonMatch))) AssocLeft]
  	, [Infix (m_reservedOp "*" >> return (BinOps (TimOp))) AssocLeft, 
 	   Infix (m_reservedOp "/" >> return (BinOps (DivOp))) AssocLeft,
        Infix (m_reservedOp "%" >> return (BinOps (ModOp))) AssocLeft]
 	, [Infix (m_reservedOp "+" >> return (BinOps (AddOp))) AssocLeft, 
 	   Infix (m_reservedOp "-" >> return (BinOps (MinOp))) AssocLeft]
+   ,[Infix (m_reservedOp "<<" >> return (BinOps (LeftShift))) AssocLeft,
+     Infix (m_reservedOp ">>" >> return (BinOps (RightShift))) AssocLeft]
     , [Infix (m_reservedOp "==" >> return (BinOps (EqOp))) AssocLeft,
       Infix (m_reservedOp "!=" >> return (BinOps (UneqOp))) AssocLeft]
 	, [Infix (m_reservedOp ">" >> return (BinOps (GrtOp))) AssocLeft, 
@@ -160,31 +166,35 @@ term = m_parens expr
                         ; return (DeRef (DeRefItem (ResRef r e) att))})
                        <|> return (DeRef (ResRef r e))
                   }))
-  
+      <|> do
+          m_symbol "$"
+          do
+              m_reservedOp "::"
+              path <- m_identifier `sepBy1` (m_reservedOp "::")
+              let s = last path
+              let classPath = intercalate "::" $ init path
+              if (null classPath)
+                then optionalArg $ ScopeVar STop s
+                else optionalArg $ ScopeVar (SClass classPath) s
+            <|> do
+                s <- m_identifier
+                optionalArg $ LocalVar s
     <|> (do { s <- m_identifier 
             ;return (DeRef (Values (ValueString s)))
             })
     <|> (m_reserved "true" >> return (DeRef (Values (ValueBool True))))
     <|> (m_reserved "false" >> return (DeRef (Values (ValueBool False))))
 
-    <|> do
-        m_symbol "$"
-        do
-            m_reservedOp "::"
-            path <- m_identifier `sepBy1` (m_reservedOp "::")
-            let s = last path
-            let classPath = intercalate "::" $ init path
-            if (null classPath)
-              then optionalArg $ ScopeVar STop s
-              else optionalArg $ ScopeVar (SClass classPath) s
-          <|> do
-              s <- m_identifier
-              optionalArg $ LocalVar s
-
     <|> (do { as <- m_brackets (m_commaSep expr)
             ; return (Array as)})
     <|> (do { as <- m_braces (m_commaSep hashEle)
             ; return (Hash as)})
+    <|> (do { char '/'
+            ; regex <- many parseRegex
+            ; char '/'
+            ; spaces
+            ; return (DeRef (Values (ValueRegex (concat regex))))
+            })
 {-    <|> try (do { v <- m_braces ( selectorBody )
             ; return (ListofPair v)} 
             )
@@ -212,7 +222,20 @@ hashEle = try (do { k <- m_integer
              ; e <- expr  
              ; return ((ValueString k), e)
              }
+          <|>
+          do { k <- m_stringLiteral
+             ; m_reservedOp "=>"
+             ; e <- expr
+             ; return ((ValueString k), e)
+             }
              )
+
+parseRegex :: PuppetParser String
+parseRegex = fmap return (noneOf "\\/") <|> (do {
+                                                ; a <- char '\\'
+                                                ; b <- anyChar
+                                                ; return [a,b]
+                                                })
 
 {------------------------------------------------------------------------------
     top level PuppetParser

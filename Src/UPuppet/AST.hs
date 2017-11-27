@@ -22,6 +22,7 @@ data Value =   ValueInt    Integer
              | ValueFloat  Double
              | ValueArray  ArrayValue
              | ValueHash   HashValue
+             | ValueRegex  String
              | ValueRef    String String
              deriving (Show,Eq)
          
@@ -54,6 +55,9 @@ data Variable = LocalVar String | ScopeVar Scope String
 data BinOp = AddOp | DivOp | MinOp | TimOp | ModOp
            | AndOp | OrOp  
            | EqOp  | UneqOp | GrtOp  | LessOp | GeqOp |LeqOp 
+           | Match | NonMatch
+           | In
+           | LeftShift | RightShift
              deriving (Show,Eq)
 
 data UnaryOp = Not | Splat | Negate
