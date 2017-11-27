@@ -302,15 +302,15 @@ toValueArray []                    = []
 toValueArray ((DeRef (Values a)):as) = (a:(toValueArray as)) 
 
 -- check whether an hash is an hash value
-valueHash :: [(Value, ValueExp)] -> Bool
+valueHash :: [(ValueExp, ValueExp)] -> Bool
 valueHash []                    = True
-valueHash ((a, (DeRef (Values b))):hs) = valueHash hs 
+valueHash (((DeRef (Values a)), (DeRef (Values b))):hs) = valueHash hs 
 valueHash _                     = False
 
 -- convert a list of value and value expression pairs to a list of value and value pairs
-toValueHash :: [(Value, ValueExp)] -> [(Value, Value)]
-toValueHash []                    = []
-toValueHash ((a, (DeRef (Values b))) : hs) = ((a, b):(toValueHash hs)) 
+toValueHash :: [(ValueExp, ValueExp)] -> [(Value, Value)]
+toValueHash []                                              = []
+toValueHash (((DeRef (Values a)), (DeRef (Values b))) : hs) = ((a, b):(toValueHash hs)) 
 
 -- evaluate a list of expressions to a list of values            
 evalArray :: States [ValueExp] -> Scope -> [ValueExp]
@@ -318,11 +318,13 @@ evalArray (_, _, _, []) sco                              = []
 evalArray (env, defEnv, cv, ((DeRef (Values a)):as)) sco = ((DeRef (Values a)):(evalArray (env, defEnv, cv, as) sco))
 evalArray (env, defEnv, cv, (a:as)) sco                  = (evalExp (env, defEnv, cv, a) sco):as 
 
--- evaluate a list of value and expression pairs to a list of value and value expression pairs  
-evalHash :: States [(Value, ValueExp)] -> Scope  -> [(Value, ValueExp)]
-evalHash (_, _, _, []) sco                                   = []
-evalHash (env, defEnv, cv, ((x, (DeRef (Values h))):hs)) sco = ((x, (DeRef (Values h))):(evalHash (env, defEnv, cv, hs) sco))
-evalHash (env, defEnv, cv, ((x,h):hs)) sco                   = (x, (evalExp (env, defEnv, cv, h) sco)):hs
+-- evaluate a list of expression and expression pairs to a list of value expression and value expression pairs
+evalHash :: States [(ValueExp, ValueExp)] -> Scope  -> [(ValueExp, ValueExp)]
+evalHash (_, _, _, []) sco                                                    = []
+evalHash (env, defEnv, cv, (((DeRef (Values x)), (DeRef (Values h))):hs)) sco = ((DeRef (Values x)), (DeRef (Values h))):(evalHash (env, defEnv, cv, hs) sco)
+evalHash (env, defEnv, cv, ((x, (DeRef (Values h))):hs)) sco                  = ((evalExp (env, defEnv, cv, x) sco), (DeRef (Values h))):(evalHash (env, defEnv, cv, hs) sco)
+evalHash (env, defEnv, cv, (((DeRef (Values x)),h):hs)) sco                   = ((DeRef (Values x)), (evalExp (env, defEnv, cv, h) sco)):(evalHash (env, defEnv, cv, hs) sco)
+evalHash (env, defEnv, cv, ((x,h):hs)) sco                                    = ((evalExp (env, defEnv, cv, x) sco), (evalExp (env, defEnv, cv, h) sco)):(evalHash (env, defEnv, cv, hs) sco)
 
 
 {------------------------------------------------------------------------------

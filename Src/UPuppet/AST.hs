@@ -40,7 +40,7 @@ deRefArray xs d | x >= 0    = Values (xs !! x)
 -- dereference a hash value
 deRefHash :: HashValue -> Value -> DeRefExp
 deRefHash ((x,v):vs) d | ((x,v):vs) == [] = error "deRefHash"
-                       | x == d           = Values v 
+                       | x == d           = Values v
                        | otherwise        = deRefHash vs d
 
 -- define the date type for scope
@@ -68,7 +68,7 @@ data ValueExp =   BinOps      BinOp ValueExp ValueExp
                 | UnaryOps    UnaryOp ValueExp
                 | Selector    ValueExp [(ValueExp, ValueExp)]
                 | Array       [ValueExp]
-                | Hash        [(Value, ValueExp)]
+                | Hash        [(ValueExp, ValueExp)]
                 | DeRef       DeRefExp
                 deriving (Show,Eq)
         

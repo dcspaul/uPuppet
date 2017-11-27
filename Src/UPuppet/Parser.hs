@@ -148,7 +148,7 @@ term = m_parens expr
     <|> (try (do { d <- m_float ; return (DeRef (Values (ValueFloat d))) }))
     <|> (do { d <- m_integer ; return (DeRef (Values (ValueInt d))) })
     <|> (do { s <- m_stringLiteral ; return (DeRef (Values (ValueString s))) })
-    <|> (do { r <- try builtinResourceParser
+    <|> (try (do { r <- try builtinResourceParser
             ; try (do {d <- m_brackets m_identifier
                   ; ( do { att <- m_brackets expr 
                         ; return (DeRef (DeRefItem (Values (ValueRef r d)) att))})            
@@ -159,7 +159,7 @@ term = m_parens expr
                         ; return (DeRef (DeRefItem (ResRef r e) att))})
                        <|> return (DeRef (ResRef r e))
                   })  
-          })
+          }))
     <|> (try (do { r <- qualIdentifier
                  ; e <- m_brackets (expr)
                       ; ( do { att <- m_brackets expr 
@@ -210,25 +210,12 @@ optionalArg v = do
     <|> do return $ DeRef (Var v)
   
 
-hashEle :: PuppetParser (Value, ValueExp)
-hashEle = try (do { k <- m_integer
+hashEle :: PuppetParser (ValueExp, ValueExp)
+hashEle = try (do { k <- expr
              ; m_reservedOp "=>"
-             ; e <- expr  
-             ; return ((ValueInt k), e)
-             }
-          <|>
-          do { k <- m_identifier
-             ; m_reservedOp "=>"
-             ; e <- expr  
-             ; return ((ValueString k), e)
-             }
-          <|>
-          do { k <- m_stringLiteral
-             ; m_reservedOp "=>"
-             ; e <- expr
-             ; return ((ValueString k), e)
-             }
-             )
+             ; v <- expr
+             ; return (k, v)
+             })
 
 parseRegex :: PuppetParser String
 parseRegex = fmap return (noneOf "\\/") <|> (do {
