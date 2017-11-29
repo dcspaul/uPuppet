@@ -1,1 +1,0 @@
-[Class "and_in_test" [] Nothing (StatementsList [If (BinOps In (DeRef (Values (ValueString "test"))) (DeRef (Values (ValueString "clude")))) (StatementsList [Resource "File" (DeRef (Values (ValueString "/tmp/tst"))) [("content",DeRef (Values (ValueString "none")))]]) Nothing]),Class "main" [] Nothing (StatementsList [Include "and_in_test"])]

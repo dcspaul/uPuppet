@@ -18,9 +18,14 @@ class in_string {
     file { "/tmp/tst2": content => "none" }
   }
 
+  # Test Number and String
+  if 4 in "number4instring" {
+    file { "/this/file/is/wrong0": content => "none" }
+  }
+
   # Negative test
   if "test" in "notinthisstring" {
-    file {"/this/file/is/wrong": ensure => "file" }
+    file {"/this/file/is/wrong1": ensure => "file" }
   }
 
   # Test Array Right
@@ -30,16 +35,16 @@ class in_string {
   $d = ["aoihjaoi", "hiajhpaekpa", "ahipejpamb", "aoihpak" ]
 
   if "true" in $a {
-    file { "/tmp/tst3": content => "none" }
+    file { "/tmp/tst4": content => "none" }
   }
 
   # Case test
   if "test" in $b {
-    file { "/tmp/tst4": content => "none" }
+    file { "/tmp/tst5": content => "none" }
   }
 
   if "test" in $c {
-    file { "/tmp/tst5": content => "none" }
+    file { "/tmp/tst6": content => "none" }
   }
 
   # Negative test
@@ -54,16 +59,16 @@ class in_string {
   $h = {"phiea" => "test", "notme" => "TesT", "notmeeither" => "tESt", "none" => "TeSt"}
 
   if "true" in $e {
-    file { "/tmp/tst6": content => "none" }
+    file { "/tmp/tst7": content => "none" }
   }
 
   # Case test
   if "test" in $f {
-    file { "/tmp/tst7": content => "none" }
+    file { "/tmp/tst8": content => "none" }
   }
 
   if "test" in $g {
-    file { "/tmp/tst8": content => "none" }
+    file { "/tmp/tst9": content => "none" }
   }
 
   # Negative test (not in key test)
@@ -112,13 +117,17 @@ class in_regex {
   } 
 }
 
-class odd_behaviour {
+class undocumented_behaviour {
   if { "hash" => "foo" } in { "hash" => "foo" } {
-    file { "/weird/1": ensure => "file" }
+    file { "normal1": ensure => "file" }
   }
 
   if 4 in 8 {
-    file { "/weird/2": ensure => "file" }
+    file { "normal2": ensure => "file" }
+  }
+
+  if "TEST" in { 5 => "test", "test1" => "test2", "8" => "test3", 7 => "test4" } {
+    file { "normal3": ensure => "file" }
   }
 
   if 5 in { 5 => "test", "7" => "test2", "8" => "test3", 7 => "test4" } {
@@ -138,6 +147,6 @@ class main {
 
 include in_string
 include in_regex
-include odd_behaviour
+include undocumented_behaviour
 }
 

@@ -10,6 +10,7 @@ import Debug.Trace
 
 import Text.Regex
 import Text.Regex.PCRE
+import Data.Char(toLower)
 
 import UPuppet.CState
 import UPuppet.AST
@@ -205,7 +206,7 @@ evalExp (env, defEnv, cv, (BinOps EqOp (DeRef (Values (ValueBool x))) (DeRef (Va
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueInt x))) (DeRef (Values (ValueInt y))))) sco       = (DeRef (Values (ValueBool (x /= y))))
 -- evaluate the "!=" operation on two float values
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueFloat x))) (DeRef (Values (ValueFloat y))))) sco   = (DeRef (Values (ValueBool (x /= y))))
--- evaluate the "!=" operation on two string values
+-- evaluate the "!=" operation on two string valuessubset
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueString x))) (DeRef (Values (ValueString y))))) sco = (DeRef (Values (ValueBool ((inStringVar env defEnv sco x) /= (inStringVar env defEnv sco y)))))
 -- evaluate the "!=" operation on two boolean values
 evalExp (env, defEnv, cv, (BinOps UneqOp (DeRef (Values (ValueBool x))) (DeRef (Values (ValueBool y))))) sco     = (DeRef (Values (ValueBool (x /= y))))
@@ -219,7 +220,33 @@ evalExp (env, defEnv, cv, (BinOps Match (DeRef (Values (ValueString x))) (DeRef 
 evalExp (env, defEnv, cv, (BinOps NonMatch (DeRef (Values (ValueString x))) (DeRef (Values (ValueRegex r))))) sco   = (DeRef (Values (ValueBool (not (x =~ r)))))
 -- evaluate the "!~" operation of string and String
 evalExp (env, defEnv, cv, (BinOps NonMatch (DeRef (Values (ValueString x))) (DeRef (Values (ValueString r))))) sco  = (DeRef (Values (ValueBool (not (x =~ r)))))
--- evaluate the "in" operation with a -- evaluate the "Not" operation on an expression  
+-- evaluate the "in" operation
+evalExp (env, defEnv, cv, (BinOps In (DeRef (Values x)) (DeRef (Values y)))) sco = case y of
+    (ValueString s)  -> case x of
+        (ValueString search) -> (DeRef (Values (ValueBool ((map toLower search) `isInfixOf` (map toLower s)))))
+        (ValueRegex regex)   -> (DeRef (Values (ValueBool (s =~ regex))))
+        _                    -> (DeRef (Values (ValueBool False)))
+    (ValueArray arr) -> case x of
+        (ValueString search) -> (DeRef (Values (ValueBool ((ValueString (map toLower search)) `elem` (map valueToLower arr)))))
+        (ValueRegex regex)   -> (DeRef (Values (ValueBool (any (==True) (map (valueRegex regex) arr)))))
+        _                    -> (DeRef (Values (ValueBool (x `elem` arr))))
+    (ValueHash hash) -> case x of
+        (ValueString search) -> (DeRef (Values (ValueBool ((ValueString (map toLower search)) `elem` (map valueToLower (fst (unzip hash)))))))
+        (ValueRegex regex)   -> (DeRef (Values (ValueBool (any (==True) (map (valueRegex regex) (fst $ unzip hash))))))
+        _                    -> (DeRef (Values (ValueBool (x `elem` (fst $ unzip hash)))))
+    _                -> (DeRef (Values (ValueBool False)))
+    where
+        valueToLower :: Value -> Value
+        valueToLower val = case val of
+            (ValueString s) -> (ValueString $ map toLower s)
+            _               -> val
+        
+        valueRegex :: String -> Value -> Bool
+        valueRegex regex v = case v of
+            (ValueString s) -> s =~ regex
+            _               -> False
+
+-- evaluate the "Not" operation on an expression
 -- it corresponds to the rule NOTStep
 evalExp (env, defEnv, cv, (UnaryOps op exp)) sco                                                                 = (UnaryOps op (evalExp (env, defEnv, cv, exp) sco))
 -- evaluate the second argument of any binary operation of the operator belonging to BinOps

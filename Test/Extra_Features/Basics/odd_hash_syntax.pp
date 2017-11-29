@@ -3,6 +3,8 @@
 # This file tests nested hash functionality and mixed type hash functionality
 
 class odd_hash_syntax {
+
+
   $hash1 = { 5 => true, "test" => false,
     "nest" => {
        "yes!" => true,
@@ -18,18 +20,28 @@ class odd_hash_syntax {
 
 
   # Dereferencing hash right after initialization (Useless but correct)
-  if {/no_way/ => true}[/no way/] {
-    file { "/test5": ensure => "file" }
+  if {/no_way/ => true}[/no_way/] {
+    file { "/weird": ensure => "file" }
   }
 
-  # Dereferencing on list parameter = True
+  # Comma separated list as key = True
   if $hash1["nest"][1000]["nest3"]["yes","this","is","fine"] {
     file { "/weird1": ensure => "file" }
   }
 
-  # Dereferencing on list item = True
+  # List as Key = True
+  if $hash1["nest"][1000]["nest3"][["yes","this","is","fine"]] {
+    file { "/weird11": ensure => "file" }
+  }
+
+  # List element as Key = False 
   if $hash1["nest"][1000]["nest3"]["yes"] {
-    file { "/weird1": ensure => "file" }
+    file { "/weird2": ensure => "file" }
+  }
+
+  # Splat element = True
+  unless $hash1["nest"][1000]["nest3"]["tst"] {
+    file { "/weird3": ensure => "file" }
   }
 }
 
