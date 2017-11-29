@@ -144,7 +144,9 @@ table =
     , [Infix (m_reservedOp "or" >> return (BinOps (OrOp))) AssocLeft]
 	]
 
-term = m_parens expr 
+term = m_parens expr
+    -- <|> (try (do {d <- m_octal ; return (DeRef (Values (ValueInt d)))}))  -- octal not supporteds
+    <|> (try (do {d <- m_hexadecimal; return (DeRef (Values (ValueInt d)))}))
     <|> (try (do { d <- m_float ; return (DeRef (Values (ValueFloat d))) }))
     <|> (do { d <- m_integer ; return (DeRef (Values (ValueInt d))) })
     <|> (do { s <- m_stringLiteral ; return (DeRef (Values (ValueString s))) })

@@ -11,6 +11,7 @@ import Debug.Trace
 import Text.Regex
 import Text.Regex.PCRE
 import Data.Char(toLower)
+import Data.Bits(shiftL, shiftR)
 
 import UPuppet.CState
 import UPuppet.AST
@@ -246,7 +247,11 @@ evalExp (env, defEnv, cv, (BinOps In (DeRef (Values x)) (DeRef (Values y)))) sco
             (ValueString s) -> s =~ regex
             _               -> False
 
--- evaluate the "Not" operation on an expression
+-- evaluate left bit shift
+evalExp (env, defEnv, cv, (BinOps LeftShift (DeRef (Values (ValueInt x))) (DeRef (Values (ValueInt y))))) sco     = (DeRef (Values (ValueInt $ shiftL x (fromIntegral y))))
+-- evaluate right bit shift
+evalExp (env, defEnv, cv, (BinOps RightShift (DeRef (Values (ValueInt x))) (DeRef (Values (ValueInt y))))) sco     = (DeRef (Values (ValueInt $ shiftR x (fromIntegral y))))
+-- evalExp (env, defEnv, cv, (BinOps LeftShift ()))
 -- it corresponds to the rule NOTStep
 evalExp (env, defEnv, cv, (UnaryOps op exp)) sco                                                                 = (UnaryOps op (evalExp (env, defEnv, cv, exp) sco))
 -- evaluate the second argument of any binary operation of the operator belonging to BinOps
