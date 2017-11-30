@@ -187,9 +187,9 @@ term = m_parens expr
     <|> (m_reserved "true" >> return (DeRef (Values (ValueBool True))))
     <|> (m_reserved "false" >> return (DeRef (Values (ValueBool False))))
 
-    <|> (do { as <- m_brackets (m_commaSep expr)
-            ; return (Array as)})
-    <|> (do { as <- m_braces (m_commaSep hashEle)
+    <|> (do { as <- m_brackets (commaSep expr)
+            ; return (Array (as))})
+    <|> (do { as <- m_braces (commaSep hashEle)
             ; return (Hash as)})
     <|> (do { char '/'
             ; regex <- many parseRegex
@@ -249,8 +249,7 @@ names = do { s <- m_identifier; return (s)}
 --selector = do { s <- m_identifier; }
 
 selectorBody :: PuppetParser [(ValueExp, ValueExp)]
-selectorBody = selectorEle `sepBy` (m_reservedOp ",")
-
+selectorBody = commaSep selectorEle
 
 selectorEle :: PuppetParser (ValueExp, ValueExp)
 selectorEle = do { s1 <- expr 
@@ -343,7 +342,7 @@ caseBody = many1 caseEle
 
 
 resourceBody :: PuppetParser [(String, ValueExp)]
-resourceBody = resourceEle `sepBy` (m_reservedOp ",")
+resourceBody = commaSep resourceEle <|> return []
 
 resourceEle :: PuppetParser (String, ValueExp)
 resourceEle = do { x <- m_identifier
@@ -418,7 +417,7 @@ parameter = do
 -- a list of unique parameters (with optional values)
 parameterList :: PuppetParser [(String, Maybe ValueExp)]
 parameterList = do
-  pvs <- parameter `sepBy` (m_reservedOp ",")
+  pvs <- commaSep parameter <|> return []
   case (checkUniqueParameters pvs) of
     Right pvs' -> do return pvs'
     Left msg -> fail msg
@@ -431,3 +430,11 @@ checkUniqueParameters (pv:pvs) = if elem (fst pv) (map fst pvs)
   else do
     pvs' <- checkUniqueParameters pvs
     return $ pv:pvs'
+
+commaSep :: PuppetParser a -> PuppetParser [a]
+commaSep fn = (do {
+                ; x <- fn
+                ; let ex = do { m_reservedOp "," ; e <- fn ; return e }
+                ; xs <- many $ try ex
+                ; optional $ m_reservedOp ","
+                ; return (x:xs)})

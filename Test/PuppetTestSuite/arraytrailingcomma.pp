@@ -1,4 +1,3 @@
-#@UNSUPPORTED
 class main {
 
 file {
