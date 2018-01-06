@@ -1,5 +1,5 @@
 # @FEATURES classes, class_nesting
-# @UNSUPPORTED @EXPECT_FAIL
+# @EXPECT_FAIL
 #% Stupid class tricks: multiple definitions of a class from different nesting levels are OK, 
 #% ergo multiple definitions of variables in the same class are forbidden
 

@@ -1,5 +1,4 @@
 # @FEATURES classes, class_overriding
-# @UNSUPPORTED
 # @EXPECT_FAIL
 #% References in an including class cannot extend resources in the included class.
 

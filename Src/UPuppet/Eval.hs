@@ -17,89 +17,7 @@ import UPuppet.CState
 import UPuppet.AST
 import UPuppet.Catalog
 import UPuppet.Options
-
-{------------------------------------------------------------------------------
-    Types private to the evaluation
-------------------------------------------------------------------------------}
--- define the type of the variable environment
-type Env = [(Scope, Name, Value)]
-
--- look up a variable under some scope in the variable environment
-lookupEnv :: Env -> Scope -> Name -> Maybe Value
-lookupEnv [] _ _                                      = Nothing
-lookupEnv ((s, n, v):es) sco x | (x == n && sco == s) = (Just v)
-                               | otherwise = (lookupEnv es sco x) 
-
--- clear the elements in the environment associated with some specific scope
-clearScope :: Scope -> Env -> Env
-clearScope sco [] = []
-clearScope sco ((s,n,v):es) | s == sco = clearScope sco es
-                            | otherwise = (s,n,v):clearScope sco es
-
--- define the definitions
-data Def = ClassDef (Maybe Name) OptParameterList Statements 
-         | DeclaredClass (Scope)
-         | ResTypeDef Name OptParameterList Statements
-         deriving (Show)
-
--- define the type for the definition environment         
-type DefEnv = [(Name, Def)]
-
--- the parent scope of a current scope for dereferencing
-parentof :: DefEnv -> Scope -> Scope
-parentof defEnv sco =  case sco of 
-                          SClass b -> (lookupDefEnv defEnv b)
-                          SNode    -> STop
-                          STop     -> error "Top scope: No higher scope"
-                          SDef b   -> baseof defEnv b
-
--- the base scope (toplevel or node) in effect in a given scope
-baseof :: DefEnv -> Scope -> Scope
-baseof defEnv STop        = STop
-baseof defEnv SNode       = SNode
-baseof defEnv (SDef sco)  = baseof defEnv sco
-baseof defEnv (SClass a)  = baseof defEnv (lookupDefEnv defEnv a)
-
--- look up the variables in the variable environment with respect to the parent scope
-lookforVar :: Env -> DefEnv -> Scope -> Variable -> Value
--- when the variable is a local variable
-lookforVar es defEnv sco (LocalVar x) = case (lookupEnv es sco x) of 
-                                        (Just b) -> b
-                                        Nothing  -> case sco of STop -> (error ("unqualified variable not found in any scope: " ++ show x))
-                                                                sco -> (lookforVar es defEnv (parentof defEnv sco) (LocalVar x))
--- when the variable is a variable with a scope
-lookforVar es defEnv sco (ScopeVar sco' x) = case (lookupEnv es sco' x) of 
-                    (Just b) -> b
-                    Nothing  -> error ("lookForVar: " ++ (show sco') ++ " :: " ++ (show x))
-
--- create an environment from a list of string and value pairs and a scope
-extendEnv :: Scope -> [(String, ValueExp)] -> Env
-extendEnv _ [] = []
-extendEnv sco ((x, (DeRef (Values y))):ys) = (sco, x, y):(extendEnv sco ys)
-
--- change the status of a class in the definition environment to "Declared"
-changeDef :: DefEnv -> String -> Scope -> DefEnv
-changeDef ((n, def):ds) a sco | n /= a = (n, def):(changeDef ds a sco) 
-                              | n == a = (n, (DeclaredClass sco)):ds
-
-
--- look up the definiton environment for the parent class of a class
-lookupDefEnv :: DefEnv -> Name -> Scope
-lookupDefEnv [] b                     = STop 
-lookupDefEnv ((a, def):ds) b | a == b = case def of 
-                                        DeclaredClass sco -> sco
-                             | a /= b = (lookupDefEnv ds b) 
-
--- loop up the status of a class in the definition environment
-lookupDef :: (Eq a, Show a) => a -> [(a, b)] -> b
-lookupDef a []                           = error ("lookupDef: cannot find " ++ show a)
-lookupDef a ((name, v):ds) | (a == name) = v 
-                           | a /= name   = (lookupDef a ds)
-
--- check whether a class is in the definition environment
-isDef :: DefEnv -> String -> Bool
-isDef [] _ = False
-isDef ((x, def):ds) n = if x == n then True else isDef ds n 
+import UPuppet.Scoping
 
 -- dereference in-string variables
 inStringVar :: Env -> DefEnv -> Scope -> String -> String
@@ -131,7 +49,7 @@ inStringVar env defEnv sco text = substituteVars text vars vals
       substituteVars text vars vals = foldl replace' text $ zip vars vals
 
 -- define the type of the states of a program in the process of evaluation
-type States a = (Env, DefEnv, Catalog, a)  
+type States a = (Env, DefEnv, ScopedCatalog, a)  
 
 {------------------------------------------------------------------------------
     Evaluation of expressions of muPuppet
@@ -432,7 +350,7 @@ evalStat (env, defEnv, cv, (Case x ((z, s):xs))) sco = case new_x of
 evalStat (env, defEnv, cv, (Resource x y rs)) sco = case y of 
     (UnaryOps Splat v@(DeRef (Values (ValueArray _))))  -> (env, defEnv, cv, (Resource x v rs))  -- reduce splat as it behaves as an array would
     (DeRef (Values (ValueArray arr)))-> evalStat (env, defEnv, cv, StatementsList (map (\v -> Resource x v rs) (map (\v -> (DeRef (Values v))) arr))) sco -- split Resource into multiple
-    (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (x,inStringVar env defEnv sco n,toValueRes rs_mod) ), Skip)
+    (DeRef (Values (ValueString n))) -> if (valueRes rs) then (env, defEnv, (extendCat cv (sco, (x,inStringVar env defEnv sco n,toValueRes rs_mod) )), Skip)
                                         else (env, defEnv, cv, (Resource x y (evaltoListValue env defEnv cv sco rs)))
                                         where rs_mod = modifyValueRes env defEnv sco rs
     (DeRef (Values _ ))              -> error "wrong type of resource name"
@@ -477,6 +395,18 @@ evalStat (env, defEnv, cv, (ResTypeCont t p s)) sco =
     if (valueRes p) 
     then ((env ++ (extendEnv sco p)), defEnv, cv, s)
     else (env, defEnv, cv, (ResTypeCont t (evaltoListValue env defEnv cv sco p) s))
+-- evaluate resource update Statements
+evalStat (env, defEnv, cv, (ResUpdate t (r:rs) b)) sco
+    | isVal r = if not $ null rs then evalStat (env, defEnv, cv', ResUpdate t (rs) b) sco else (env, defEnv, cv', Skip)
+    | otherwise = evalStat (env, defEnv, cv, (ResUpdate t ((evalExp (env, defEnv, cv, r) sco):rs) b)) sco
+    where
+        r' :: Name
+        r' = case r of
+            (DeRef(Values (ValueString x))) -> x
+            _                               -> error ("Unexpected Resource Name")
+
+        cv' :: ScopedCatalog
+        cv' = updateCat cv (sco, (t, r', toValueRes b)) defEnv
 -- evaluate scope statements in muPuppet where the scope is a defined resource type and that reaches "Skip" statement
 -- it corresponds to the rule DEFScopeDone
 evalStat (env, defEnv, cv, (ScopeStat (SDef a) Skip)) sco = (clearScope (SDef a) env, defEnv, cv, Skip)
@@ -499,7 +429,7 @@ evalStat (env, defEnv, cv, (StatementsList (s:xs)))  sco =
     (env', defEnv', cv', (StatementsList (s':xs))) 
 
 -- evaluate a list of string and expression pairs
-evaltoListValue :: Env -> DefEnv -> Catalog -> Scope ->  [(String, ValueExp)] -> [(String, ValueExp)]
+evaltoListValue :: Env -> DefEnv -> ScopedCatalog -> Scope ->  [(String, ValueExp)] -> [(String, ValueExp)]
 evaltoListValue _ _ _ _ [] = [] 
 evaltoListValue env defEnv cv sco ((x,(DeRef (Values y))):ys) = ((x, (DeRef (Values y))):(evaltoListValue env defEnv cv sco ys))  
 evaltoListValue env defEnv cv sco ((x,y):ys) = (x, (evalExp (env, defEnv, cv, y) sco)):(evaltoListValue env defEnv cv sco ys)
@@ -577,7 +507,7 @@ evalProg (env, defEnv, cv, (p:ps)) n = let (env', defEnv', cv', p') = (evalProgE
 ------------------------------------------------------------------------------}
 
 evalPuppet :: CState -> AST -> IO (Either [String] Catalog)
-evalPuppet st raw_ast = do { return (Right catalog') } where
+evalPuppet st raw_ast = do { return (Right $ scopedCatToCat catalog') } where
 
 	-- evaluate in steps
 	(env', defEnv', catalog', ast') = 

@@ -12,8 +12,6 @@ import Data.List (intercalate)
 
 -- render catalog as string
 
-type CatalogResource = (Name, Name, [(Attri, Value)])
-
 showCatalog :: CState -> Catalog -> String
 showCatalog st catalog = concat $ map showResource catalog
 

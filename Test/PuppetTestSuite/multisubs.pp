@@ -1,4 +1,3 @@
-#@UNSUPPORTED
 
 class base {
     file { "/tmp/multisubtest": content => "base", mode => "0644" }

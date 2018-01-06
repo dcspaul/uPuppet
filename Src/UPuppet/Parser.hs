@@ -13,7 +13,7 @@ import UPuppet.CState
 import UPuppet.AST
 
 import Control.Monad(guard)
-import Data.Char(toLower, isAlphaNum)
+import Data.Char(toLower, isAlphaNum, digitToInt)
 import Data.List(intercalate,find)
 import Text.Parsec
 import Text.Parsec.String
@@ -53,8 +53,9 @@ m_braces = P.braces lexer
 m_brackets = P.brackets lexer
 m_commaSep = P.commaSep lexer
 m_integer = P.integer lexer
-m_octal = P.octal lexer
-m_hexadecimal = P.hexadecimal lexer
+m_octal :: PuppetParser Integer
+m_octal = do { char '0'; text <- many $ oneOf "01234567"; spaces; return $ toDecimal text 8 ((length text) - 1)}
+m_hexadecimal = do { char '0'; oneOf "xX"; text <- many $ oneOf "0123456789aAbBcCdDeEfF"; spaces; return $ toDecimal text 16 ((length text) - 1)}
 m_float = P.float lexer
 m_stringLiteral = P.stringLiteral lexer
 m_reserved = P.reserved lexer
@@ -145,9 +146,9 @@ table =
 	]
 
 term = m_parens expr
-    -- <|> (try (do {d <- m_octal ; return (DeRef (Values (ValueInt d)))}))  -- octal not supporteds
-    <|> (try (do {d <- m_hexadecimal; return (DeRef (Values (ValueInt d)))}))
     <|> (try (do { d <- m_float ; return (DeRef (Values (ValueFloat d))) }))
+    <|> (try (do {d <- m_hexadecimal; return (DeRef (Values (ValueInt d)))}))
+    <|> (try (do {d <- m_octal ; return (DeRef (Values (ValueInt d)))}))
     <|> (do { d <- m_integer ; return (DeRef (Values (ValueInt d))) })
     <|> (do { s <- m_stringLiteral ; return (DeRef (Values (ValueString s))) })
     <|> (try (do { r <- try builtinResourceParser
@@ -295,14 +296,20 @@ statement = ( do { m_reserved "if"
                     ; e <- expr
                     ; return (Assignment x e) }
                     })
-          <|> ( do { rn <- try builtinResourceParser;
+          <|> try ( do { rn <- try builtinResourceParser;
                    ; (m_braces 
                               (do { e <- expr;
                                   ; m_reservedOp ":"
                                   ; b <- resourceBody
                                   ; return (Resource rn e b)})
                                )                
-                    }) 
+                    })
+                    
+          <|> (do { rn <- try builtinResourceParser;  -- File["name", "name2"] { resBody }
+                  ; e <- m_brackets $ commaSep expr
+                  ; b <- m_braces resourceBody
+                  ; return (ResUpdate rn e b)
+          })
           <|> ( do { x <- qualIdentifier;
                     ; (m_braces
                           (do { e <- expr
@@ -438,3 +445,7 @@ commaSep fn = (do {
                 ; xs <- many $ try ex
                 ; optional $ m_reservedOp ","
                 ; return (x:xs)})
+
+toDecimal :: [Char] -> Int -> Int -> Integer
+toDecimal [] _ _          = fromIntegral 0
+toDecimal (x:xs) base pow = (fromIntegral ((digitToInt x) * base ^ pow)) + (toDecimal xs base (pow - 1))

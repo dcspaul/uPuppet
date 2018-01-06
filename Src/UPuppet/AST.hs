@@ -135,6 +135,7 @@ data Statements = Skip
                 |ClassCont              ParameterList Statements
                 |ResTypeDecl            String ValueExp [(String,ValueExp)]
                 |ResTypeCont            String ParameterList Statements
+                |ResUpdate              String [ValueExp] [(String, ValueExp)]
                 |ScopeStat              Scope Statements
                 deriving (Show, Eq)
         

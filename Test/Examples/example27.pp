@@ -1,5 +1,4 @@
 # @FEATURES resources, resource_extension
-# @UNSUPPORTED
 #% Variables can be defined and referenced.
 #% Note that the variables do {\em not} appear explicitly in the catalog - but they can be 
 #% substituted in resource titles and values and names, and used in other expressions

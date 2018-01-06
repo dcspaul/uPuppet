@@ -281,11 +281,11 @@ sub RunTest($) {
 				: "uPuppet failed, but Puppet compiled OK";
 			$tag = "OK" if ($unsupported);
 		} else {
-			$status = ($expectFail)
-				? "both failed (as expected)"
+			$status = ($expectFail && $unsupported) ? "Both failed, but uPuppet is unsupported"
+				: ($expectFail) ? "both failed (as expected)"
 				: ($unsupported) ? "uPuppet unsupported and failed as expected, but Puppet failed too"
 				: "both failed";
-			$tag = "OK" if ($expectFail);
+			$tag = "OK" if ($expectFail && !$unsupported);
 		}
 	}
 
