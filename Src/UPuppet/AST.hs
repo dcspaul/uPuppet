@@ -60,7 +60,7 @@ data BinOp = AddOp | DivOp | MinOp | TimOp | ModOp
            | LeftShift | RightShift
              deriving (Show,Eq)
 
-data UnaryOp = Not | Splat | Negate
+data UnaryOp = Not | Splat | Negate | InfixString
                 deriving (Show,Eq)
 
 -- define the expressions in muPuppet

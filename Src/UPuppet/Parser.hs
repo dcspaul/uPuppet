@@ -20,6 +20,8 @@ import Text.Parsec.String
 import Text.Parsec.Language
 import Text.ParserCombinators.Parsec.Pos
 import Text.Parsec.Expr
+import Text.Regex
+import Text.Regex.PCRE
 import qualified Text.Parsec.Token as P
 
 {------------------------------------------------------------------------------
@@ -150,7 +152,9 @@ term = m_parens expr
     <|> (try (do {d <- m_hexadecimal; return (DeRef (Values (ValueInt d)))}))
     <|> (try (do {d <- m_octal ; return (DeRef (Values (ValueInt d)))}))
     <|> (do { d <- m_integer ; return (DeRef (Values (ValueInt d))) })
-    <|> (do { s <- m_stringLiteral ; return (DeRef (Values (ValueString s))) })
+    <|> (do { s <- m_stringLiteral
+            ; if  s =~ "(?<!\\\\)\\$(\\{\\w+\\}|\\w+)" then return (UnaryOps (InfixString) (DeRef (Values (ValueString s))))
+            ; else return (DeRef (Values (ValueString s))) })
     <|> (try (do { r <- try builtinResourceParser
             ; try (do {d <- m_brackets m_identifier
                   ; ( do { att <- m_brackets expr 
