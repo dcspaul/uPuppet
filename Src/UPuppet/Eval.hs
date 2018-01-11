@@ -19,6 +19,14 @@ import UPuppet.Catalog
 import UPuppet.Options
 import UPuppet.Scoping
 
+
+-- check if main class exists in the AST
+hasMain :: AST -> Bool
+hasMain []            = False
+hasMain (pro_stmt:ps) = case pro_stmt of
+    Class x _ _ _ -> if x == "main" then True else hasMain ps
+    _             -> hasMain ps
+
 -- dereference in-string variables
 inStringVar :: Env -> DefEnv -> Scope -> String -> String
 inStringVar env defEnv sco text = substituteVars text vars vals
@@ -504,7 +512,7 @@ evalPuppet st raw_ast = do { return (Right $ scopedCatToCat catalog') } where
 	showTrace = (verbosity $ sOpts st) /= Normal
         ast = case mainClass $ sOpts st of
                 Nothing -> raw_ast
-                Just main -> raw_ast ++ [ProStatement (Include main)]
+                Just main -> if hasMain raw_ast then raw_ast ++ [ProStatement (Include main)] else raw_ast -- sanity check (does main exist)
 
 	-- evaluate steps with a trace of each step (if showTrace true)
 	evalNSteps limit states@(_,_,_,ast) =
