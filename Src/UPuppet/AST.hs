@@ -24,6 +24,7 @@ data Value =   ValueInt    Integer
              | ValueHash   HashValue
              | ValueRegex  String
              | ValueRef    String String
+             | Undef
              deriving (Show,Eq)
          
 -- define the type for array values

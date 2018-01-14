@@ -45,7 +45,7 @@ puppetDef = P.LanguageDef
                             "?", "=>", ",", "=", "::", "%", "and", "or"]
 	, P.reservedNames = ["true", "false", 
 						 "if", "then", "elsif", "unless", "select", "case", 
-						 "define", "include", "class", "node", "inherits"] 
+						 "define", "include", "class", "node", "inherits", "undef"] 
 	}
 
 lexer = P.makeTokenParser puppetDef
@@ -152,6 +152,7 @@ term = m_parens expr
     <|> (try (do {d <- m_hexadecimal; return (DeRef (Values (ValueInt d)))}))
     <|> (try (do {d <- m_octal ; return (DeRef (Values (ValueInt d)))}))
     <|> (do { d <- m_integer ; return (DeRef (Values (ValueInt d))) })
+    <|> (do { m_reserved "undef"; return (DeRef (Values Undef)) })
     <|> (do { s <- m_stringLiteral
             ; if  s =~ "(?<!\\\\)\\$(\\{\\w+\\}|\\w+)" then return (UnaryOps (InfixString) (DeRef (Values (ValueString s))))
             ; else return (DeRef (Values (ValueString s))) })

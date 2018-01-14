@@ -2,7 +2,7 @@
     uPuppet: Catalog
 ------------------------------------------------------------------------------}
 
-module UPuppet.Catalog ( Name, Attri, ScopedCatalog, Catalog, CatalogResource, lookupCat, extendCat, updateCat, scopedCatToCat) where
+module UPuppet.Catalog ( Name, Attri, ScopedCatalog, Catalog, CatalogResource, lookupCat, updateCat, scopedCatToCat) where
 
 import UPuppet.AST
 import UPuppet.Scoping
@@ -28,29 +28,17 @@ lookupCat [] _ _ _                                         = error "lookupCat"
 lookupCat ((_, (r, rn, rs)):cs) s n att | ((r==s)&&(rn==n)) = (lookforAtt rs att)
                                         | otherwise         = (lookupCat cs s n att)
 
-elemCat :: ScopedCatalog -> String -> String -> Bool
-elemCat [] _ _                                        = False
-elemCat ((_, (r, rn, rs)):cs) s n | ((r==s)&&(rn==n)) = True
-                                  | otherwise         = (elemCat cs s n)
-
--- attempt to extend the catalog, raise error if resource already presend
-extendCat :: ScopedCatalog -> (Scope, CatalogResource) -> ScopedCatalog
-extendCat cv (sco, (x,n,rs)) =
-  if elemCat cv x n
-  then error ("Resource '"++ x ++ "["++ n ++"] already present in catalog")
-  else cv ++ [(sco, (x, n, rs))]
-
 updateCat :: ScopedCatalog -> (Scope, CatalogResource) -> DefEnv -> ScopedCatalog
-updateCat [] (sco, (t, n, s)) defEnv                          = [(sco, (t, n, s))]  -- if resource does not exist - create it
+updateCat [] (sco, (t, n, s)) defEnv                     = [(sco, (t, n, filter (\(_,xv) -> xv /= Undef) s))]  -- if resource does not exist - create it
 updateCat (c@(sco, (r, rn, rs)):cs) q@(n_sco, (t,n,s)) defEnv | r == t && rn == n = (sco, (r,rn, (updateAttri defEnv sco n_sco rs s))):cs
                                                               | otherwise         = c:(updateCat cs q defEnv)
 
 update1Attri :: DefEnv -> Scope -> Scope -> [(Attri, Value)] -> (Attri, Value) -> [(Attri, Value)]
 update1Attri _ sco n_sco [] (xa, xv) =
-    if sco == n_sco then [(xa, xv)]
+    if sco == n_sco then if xv == Undef then [] else [(xa, xv)]
     else error ("Resource argument (" ++ show xa ++ ") can only be added in the following scope " ++ show sco)
 update1Attri defEnv sco n_sco (r@(ra, rv):rs) (xa, xv) | ra == xa  =
-    if childof defEnv n_sco sco  then (ra, xv):rs 
+    if childof defEnv n_sco sco  then if xv == Undef then rs else (ra, xv):rs 
     else error "Can only override resource parameters in classes inheriting from the class adding the resource"
                                                        | otherwise = r:(update1Attri defEnv sco n_sco rs (xa, xv))
  

@@ -4,7 +4,7 @@
 
 module UPuppet.Options
 	( Opts , Format(..), Verbosity(..)
-	, parseOptions, format, verbosity, outputPath, srcPath
+	, parseOptions, format, verbosity, outputPath, srcPath, strictVariables
         , nodeName, mainClass, stepLimit
 	) where
 
@@ -37,6 +37,7 @@ data Opts = Opts
   	, mainClass :: Maybe String
 	, stepLimit :: Maybe Int
 	, showVersion :: Bool
+    , strictVariables :: Bool
 	}
 
 -- the default options
@@ -49,10 +50,11 @@ defaults = Opts
   	, mainClass = Nothing
 	, stepLimit = Nothing
 	, showVersion = False
+    , strictVariables = False
 	}
 
 -- the command line flags
-data OptionFlag = Output String | StepLimit String | Format String | 
+data OptionFlag = Output String | StepLimit String | Format String | StrictVariables |
 	 MainClass String | NodeName String | VerboseOpt | VersionOpt deriving(Show,Eq)
 
 options :: [OptDescr OptionFlag]
@@ -71,6 +73,8 @@ options =
 		"verbose"
 	, Option ['V'] ["version"]	 	(NoArg VersionOpt)
 		"display version"
+    , Option [] ["strict_variables"](NoArg StrictVariables)
+        "strict variables"
 	]
 
 parseOptions :: [String] -> IO (Opts, [String])
@@ -103,6 +107,7 @@ extractOptions (f:fs) = do
 		(StepLimit n) -> stepLimitOption opts n
 		(Format fmt) -> formatOption opts fmt
 		VersionOpt -> return $ opts { showVersion = True }
+		StrictVariables -> return $ opts { strictVariables = True }
 
 stepLimitOption :: Opts -> String -> Either String Opts
 stepLimitOption opts s = 

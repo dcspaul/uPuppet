@@ -3,6 +3,8 @@ module UPuppet.Scoping (Name, Env, Def(..), DefEnv,
  lookupDefEnv, lookupDef, isDef) where
 
 import UPuppet.AST
+import UPuppet.CState
+import UPuppet.Options
 
 -- This file contains all scoping related functionality and queries needed for evaluation
 type Name = String
@@ -55,14 +57,16 @@ childof defEnv (SClass a) (SClass b) = if a == b then False else childof' defEnv
 childof defEnv _ _  = False
 
 -- look up the variables in the variable environment with respect to the parent scope
-lookforVar :: Env -> DefEnv -> Scope -> Variable -> Value
+lookforVar :: CState -> Env -> DefEnv -> Scope -> Variable -> Value
 -- when the variable is a local variable
-lookforVar es defEnv sco (LocalVar x) = case (lookupEnv es sco x) of 
+lookforVar st es defEnv sco (LocalVar x) = case (lookupEnv es sco x) of 
                                         (Just b) -> b
-                                        Nothing  -> case sco of STop -> (error ("unqualified variable not found in any scope: " ++ show x))
-                                                                sco -> (lookforVar es defEnv (parentof defEnv sco) (LocalVar x))
+                                        Nothing  -> case sco of STop -> if strictVariables $ sOpts st
+                                                                        then error ("unqualified variable not found in any scope: " ++ show x)
+                                                                        else Undef
+                                                                sco -> (lookforVar st es defEnv (parentof defEnv sco) (LocalVar x))
 -- when the variable is a variable with a scope
-lookforVar es defEnv sco (ScopeVar sco' x) = case (lookupEnv es sco' x) of 
+lookforVar _ es defEnv sco (ScopeVar sco' x) = case (lookupEnv es sco' x) of 
                     (Just b) -> b
                     Nothing  -> error ("lookForVar: " ++ (show sco') ++ " :: " ++ (show x))
 

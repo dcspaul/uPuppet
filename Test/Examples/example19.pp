@@ -1,5 +1,4 @@
 # @FEATURES resources, resource_extension
-# @UNSUPPORTED
 #% Forward references to resources are supported.
 
 class main {

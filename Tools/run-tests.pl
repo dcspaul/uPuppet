@@ -163,7 +163,7 @@ sub RunTest($) {
 		print stderr "$prog: $result\n";
 		exit(1);
 	}
-	my $cmd1 = "$binDir/uPuppet -m -o - -f json -s 1000 $testDir/$srcFile";
+	my $cmd1 = "$binDir/uPuppet -m -o - -f json -s 1000 $pc_opts $testDir/$srcFile";
 	my $nothing1 = `$cmd1 >$uOutFile.out 2>$uOutFile.err`;
 	my $status1 = $?;
 	my $stdout1 =`cat $uOutFile.out 2>/dev/null`; chomp $stdout1;
