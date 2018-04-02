@@ -197,7 +197,8 @@ term = m_parens expr
             ; return (Array (as))})
     <|> (do { as <- m_braces (commaSep hashEle)
             ; return (Hash as)})
-    <|> (do { char '/'
+    <|> (do { spaces
+            ; char '/'
             ; regex <- many parseRegex
             ; char '/'
             ; spaces
@@ -446,8 +447,8 @@ checkUniqueParameters (pv:pvs) = if elem (fst pv) (map fst pvs)
 commaSep :: PuppetParser a -> PuppetParser [a]
 commaSep fn = (do {
                 ; x <- fn
-                ; let ex = do { m_reservedOp "," ; e <- fn ; return e }
-                ; xs <- many $ try ex
+                ; let ex = try (do { m_reservedOp "," ; e <- fn ; return e })
+                ; xs <- many ex
                 ; optional $ m_reservedOp ","
                 ; return (x:xs)})
 

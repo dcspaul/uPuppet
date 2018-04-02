@@ -272,6 +272,7 @@ sub RunTest($) {
 				? "both expected to fail, but uPuppet compiled OK (Puppet failed)"
 				: ($unsupported) ? "uPuppet unsupported but compiled OK (Puppet failed)"
 				: "uPuppet compiled OK, but Puppet failed";
+      $tag = "OK" if ($unsupported);
 		}
 	} else {
 		if ($status2==0) {

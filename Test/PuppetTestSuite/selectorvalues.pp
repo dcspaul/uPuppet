@@ -37,10 +37,10 @@ $mode6 = $mode5 ? {
     755 => "755"
 }
 
-#$mode7 = "test regex" ? {
-#    /regex$/ => "755",
-#    default => "644"
-#}
+$mode7 = "test regex" ? {
+    /regex$/ => "755",
+    default => "644"
+}
 
 
 file { "/tmp/selectorvalues1": ensure => "file", mode => $mode1 }
