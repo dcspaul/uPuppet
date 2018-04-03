@@ -2,7 +2,7 @@
 # This checks whether a resource is created if all parameters are undefined
 
 class tst {
-  file { "/test/":
+  file { "/test":
     content => $a,
     owner  => undef,
   }
